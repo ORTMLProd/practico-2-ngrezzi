@@ -27,7 +27,7 @@
 	IMAGES_STORE = "s3://ml-en-produccion"
 
 
-4. Authenticarse con AWS ECR (Elastic Container Registry)
+4. Authenticarse con AWS ECR [(Elastic Container Registry)](https://aws.amazon.com/es/ecr/)
 
 	aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 718038960093.dkr.ecr.us-east-1.amazonaws.com
 
