@@ -5,6 +5,7 @@ from scrapy.http.response.html import HtmlResponse
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
 from scrapers.items import PropertyItem
+import requests
 
 class GallitoSpider(CrawlSpider):
     name = "gallito"
@@ -16,24 +17,12 @@ class GallitoSpider(CrawlSpider):
         "FEEDS": {
             "properties_gallito.jl": {"format": "jsonlines"},
         },
-        "CLOSESPIDER_ITEMCOUNT": 30,
     }
     start_urls = [
-        "https://www.gallito.com.uy/inmuebles/casas",  # !cant=80
-        "https://www.gallito.com.uy/inmuebles/apartamentos",  # !cant=80
+        "https://www.gallito.com.uy/inmuebles/casas",  # Cambia esta URL a la página que deseas raspar
     ]
 
     rules = (
-        Rule(
-            LinkExtractor(
-                allow=(
-                    [
-                        r"\/inmuebles\/casas\?pag=\d+",  # !cant=80\?pag=\d+
-                        r"\/inmuebles\/apartamentos\?pag=\d+",  # !cant=80\?pag=\d+
-                    ]
-                )
-            )
-        ),
         Rule(LinkExtractor(allow=(r"-\d{8}$")), callback="parse_property"),
     )
 
@@ -64,15 +53,13 @@ class GallitoSpider(CrawlSpider):
         fixed_details = extract_with_css("div.iconoDatos + p::text")
         property_type = possible_types[fixed_details[0].lower()]
 
-        # Check if the property is either a house or an apartment
-        if property_type in ["HOUSE", "APARTMENT"]:
-            # Save only PNG images
-            png_img_urls = [img for img in img_urls if img.endswith(".png")]
-
-            if png_img_urls:
+        # Guardar imágenes comunes (JPEG, JPG, PNG)
+        common_img_extensions = [".jpeg", ".jpg", ".png"]
+        for img_url in img_urls:
+            if any(img_url.lower().endswith(ext) for ext in common_img_extensions):
                 property = {
                     "id": property_id,
-                    "image_urls": png_img_urls,
+                    "image_urls": [img_url],
                     "source": "gallito",
                     "url": requote_uri(response.request.url),
                     "link": requote_uri(response.request.url),
@@ -80,18 +67,27 @@ class GallitoSpider(CrawlSpider):
                 }
                 yield PropertyItem(**property)
 
-                # Upload the data to S3
-                for png_url in png_img_urls:
-                    self.upload_to_s3(png_url, property_id)
+                # Subir los datos a S3 (cambia la extensión según sea necesario)
+                self.upload_to_s3(img_url, property_id)
 
     def upload_to_s3(self, url, filename):
         try:
             image_data = requests.get(url).content
+            # Determina la extensión del archivo desde la URL
+            file_extension = url.split(".")[-1].lower()
+            if file_extension in ["jpeg", "jpg"]:
+                s3_key = f"{filename}.jpg"
+            elif file_extension == "png":
+                s3_key = f"{filename}.png"
+            else:
+                # Extension no reconocida, puedes manejarlo según sea necesario
+                s3_key = f"{filename}.unknown"
+
             self.s3_client.put_object(
                 Bucket=self.s3_bucket_name,
-                Key=f"{filename}.png",  # Change the extension to match the file type
+                Key=s3_key,
                 Body=image_data,
             )
-            self.logger.info(f"Uploaded {filename}.png to S3 bucket {self.s3_bucket_name}")
+            self.logger.info(f"Uploaded {s3_key} to S3 bucket {self.s3_bucket_name}")
         except Exception as e:
-            self.logger.error(f"Failed to upload {filename}.png to S3: {str(e)}")
+            self.logger.error(f"Failed to upload {s3_key} to S3: {str(e)}")
