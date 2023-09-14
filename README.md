@@ -10,13 +10,13 @@
 
 2. Crear variables de entorno 
 
-	export AWS_ACCESS_KEY_ID= <YOUR-KEY>
-	export AWS_SECRET_ACCESS_KEY=<YOUR-KEY>
-	export AWS_SESSION_TOKEN=<YOUR-TOKEN>
+	- export AWS_ACCESS_KEY_ID= <YOUR-KEY>
+	- export AWS_SECRET_ACCESS_KEY= <YOUR-KEY>
+	- export AWS_SESSION_TOKEN= <YOUR-TOKEN>
 
-	echo $AWS_ACCESS_KEY_ID
-	echo $AWS_SECRET_ACCESS_KEY
-	echo $AWS_SESSION_TOKEN
+	- echo $AWS_ACCESS_KEY_ID
+	- echo $AWS_SECRET_ACCESS_KEY
+	- echo $AWS_SESSION_TOKEN
 
 
 	Con esto podemos validar que se setearon bien
