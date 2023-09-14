@@ -22,7 +22,7 @@
 	Con esto podemos validar que se setearon bien
 
 
-3. Descomentar linea que escribe a s3 en settings.py
+3. Descomentar linea que escribe a [s3](https://aws.amazon.com/es/s3/?gclid=CjwKCAjw3oqoBhAjEiwA_UaLtlNJCDeFqUi3xGTk6wAd6EC3ZEDUqIUTrIzKhufo9HQprr4fQfIvERoCZnYQAvD_BwE&trk=403e297f-6f7f-4dc0-9757-182e9e9f956c&sc_channel=ps&ef_id=CjwKCAjw3oqoBhAjEiwA_UaLtlNJCDeFqUi3xGTk6wAd6EC3ZEDUqIUTrIzKhufo9HQprr4fQfIvERoCZnYQAvD_BwE:G:s&s_kwcid=AL!4422!3!646996315367!e!!g!!almacenamiento%20en%20la%20nube%20s3!19636895691!149631416550) en settings.py
 	
 	IMAGES_STORE = "s3://ml-en-produccion"
 
