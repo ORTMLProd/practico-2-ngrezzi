@@ -6,7 +6,7 @@
 - validar: aws --version
 - agregar boto3
 
-1. Loguearse a AWS academy e iniciar el entorno + Copiar AWS secret KEY y access key 
+1. Loguearse a AWS academy e iniciar el entorno + Copiar AWS_ACCESS_KEY_ID ,  AWS_SECRET_ACCESS_KEY y  AWS_SESSION_TOKEN
 
 2. Crear variables de entorno 
 
