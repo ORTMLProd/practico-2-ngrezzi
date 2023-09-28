@@ -1,83 +1,71 @@
 import boto3
-from typing import Iterator
-from requests.utils import requote_uri
-from scrapy.http.response.html import HtmlResponse
-from scrapy.linkextractors import LinkExtractor
-from scrapy.spiders import CrawlSpider, Rule
-from scrapers.items import PropertyItem
 import requests
 import jsonlines
+import json
+from scrapy.linkextractors import LinkExtractor
+from scrapy.spiders import CrawlSpider, Rule
+from botocore.exceptions import NoCredentialsError
 
 class GallitoSpider(CrawlSpider):
+
     name = "gallito"
+
     custom_settings = {
-        "USER_AGENT": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        ),
+        "USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
-    start_urls = [
-        "https://www.gallito.com.uy/inmuebles/casas",  # Cambia esta URL a la página que deseas raspar
-    ]
+
+    start_urls = ["https://www.gallito.com.uy/inmuebles/casas"]
 
     rules = (
-        Rule(LinkExtractor(allow=(r"-\d{8}$")), callback="parse_property"),
+        Rule(LinkExtractor(allow=r"-\d{8}$"), callback="parse_property"),
     )
 
-    def __init__(self, *args, **kwargs):
-        super(GallitoSpider, self).__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
         self.s3_bucket_name = "ml-en-produccion"
         self.s3_client = boto3.client("s3")
-        self.property_data = []  # Lista para almacenar datos de propiedades
-
-    def parse_property(self, response: HtmlResponse) -> Iterator[dict]:
-        def get_with_css(query: str) -> str:
-            return response.css(query).get(default="").strip()
-
-        def extract_with_css(query: str) -> list[str]:
-            return [
-                line for elem in response.css(query).extract() if (line := elem.strip())
-            ]
-
-        # property details
-        property_id = get_with_css("#HfCodigoAviso::attr('value')")
-        img_urls = get_with_css("#HstrImg::attr('value')")
-        img_urls = [img for img in img_urls.split(",") if img]
-        possible_types = {
+        self.possible_types = {
             "casa": "HOUSE",
             "apartamento": "APARTMENT",
         }
 
-        # every property has this fixed list of details on gallito
-        fixed_details = extract_with_css("div.iconoDatos + p::text")
-        property_type = possible_types.get(fixed_details[0].lower(), "UNKNOWN")
+    def parse_property(self, response):
+        property_id = response.css("#HfCodigoAviso::attr('value')").get()
+        img_urls = response.css("#HstrImg::attr('value')").get().split(",")
+        details = response.css("div.iconoDatos + p::text").getall()
+        property_type = self.possible_types.get(details[0].lower(), "UNKNOWN")
 
-        # Guardar imágenes comunes (JPEG, JPG, PNG)
-        common_img_extensions = [".jpeg", ".jpg", ".png"]
+        jsonlines_data = []
+
         for img_url in img_urls:
-            if any(img_url.lower().endswith(ext) for ext in common_img_extensions):
-                property = {
+            if img_url.endswith(".jpg"):
+                img_data = requests.get(img_url).content
+                object_key = f"images/{property_id}/{img_url.split('/')[-1]}"
+                self.s3_client.put_object(Bucket=self.s3_bucket_name, Key=object_key, Body=img_data)
+
+                image_info = {
                     "id": property_id,
                     "image_urls": [img_url],
                     "source": "gallito",
-                    "url": requote_uri(response.request.url),
-                    "link": requote_uri(response.request.url),
+                    "url": response.url,
+                    "link": response.url,
                     "property_type": property_type,
                 }
-                yield PropertyItem(**property)
+                jsonlines_data.append(image_info)
 
-                # Agregar la información a la lista property_data
-                self.property_data.append(property)
+        # Convertir las líneas de información en JSONL
+        jsonlines_content = "\n".join(json.dumps(item, ensure_ascii=False) for item in jsonlines_data)
+
+        # Crear o actualizar el archivo JSONL en S3
+        jsonlines_file_key = f'properties_gallito/{property_id}.jsonl'
+        try:
+            existing_object = self.s3_client.get_object(Bucket=self.s3_bucket_name, Key=jsonlines_file_key)
+            existing_jsonlines_content = existing_object['Body'].read().decode('utf-8')
+            existing_jsonlines_content += "\n" + jsonlines_content  # Agregar nuevas líneas
+            self.s3_client.put_object(Bucket=self.s3_bucket_name, Key=jsonlines_file_key, Body=existing_jsonlines_content)
+        except self.s3_client.exceptions.NoSuchKey:
+            # El archivo no existe, crearlo con las nuevas líneas
+            self.s3_client.put_object(Bucket=self.s3_bucket_name, Key=jsonlines_file_key, Body=jsonlines_content)
 
     def closed(self, reason):
-        # Cuando se cierra la araña, escribir los datos en el archivo y cargarlo en S3
-        with jsonlines.open("properties_gallito.jl", mode="a") as writer:
-            writer.write_all(self.property_data)
-
-        # Subir el archivo JSONLines a S3
-        with open("properties_gallito.jl", "rb") as jsonlines_file:
-            self.s3_client.put_object(
-                Bucket=self.s3_bucket_name,
-                Key="properties_gallito.jl",
-                Body=jsonlines_file,
-            )
+        super().closed(reason)
