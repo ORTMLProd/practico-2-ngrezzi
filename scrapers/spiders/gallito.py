@@ -6,6 +6,7 @@ from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
 from scrapers.items import PropertyItem
 import requests
+import jsonlines
 
 class GallitoSpider(CrawlSpider):
     name = "gallito"
@@ -14,9 +15,6 @@ class GallitoSpider(CrawlSpider):
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         ),
-        "FEEDS": {
-            "properties_gallito.jl": {"format": "jsonlines"},
-        },
     }
     start_urls = [
         "https://www.gallito.com.uy/inmuebles/casas",  # Cambia esta URL a la página que deseas raspar
@@ -30,6 +28,7 @@ class GallitoSpider(CrawlSpider):
         super(GallitoSpider, self).__init__(*args, **kwargs)
         self.s3_bucket_name = "ml-en-produccion"
         self.s3_client = boto3.client("s3")
+        self.property_data = []  # Lista para almacenar datos de propiedades
 
     def parse_property(self, response: HtmlResponse) -> Iterator[dict]:
         def get_with_css(query: str) -> str:
@@ -51,7 +50,7 @@ class GallitoSpider(CrawlSpider):
 
         # every property has this fixed list of details on gallito
         fixed_details = extract_with_css("div.iconoDatos + p::text")
-        property_type = possible_types[fixed_details[0].lower()]
+        property_type = possible_types.get(fixed_details[0].lower(), "UNKNOWN")
 
         # Guardar imágenes comunes (JPEG, JPG, PNG)
         common_img_extensions = [".jpeg", ".jpg", ".png"]
@@ -67,27 +66,18 @@ class GallitoSpider(CrawlSpider):
                 }
                 yield PropertyItem(**property)
 
-                # Subir los datos a S3 (cambia la extensión según sea necesario)
-                self.upload_to_s3(img_url, property_id)
+                # Agregar la información a la lista property_data
+                self.property_data.append(property)
 
-    def upload_to_s3(self, url, filename):
-        try:
-            image_data = requests.get(url).content
-            # Determina la extensión del archivo desde la URL
-            file_extension = url.split(".")[-1].lower()
-            if file_extension in ["jpeg", "jpg"]:
-                s3_key = f"{filename}.jpg"
-            elif file_extension == "png":
-                s3_key = f"{filename}.png"
-            else:
-                # Extension no reconocida, puedes manejarlo según sea necesario
-                s3_key = f"{filename}.unknown"
+    def closed(self, reason):
+        # Cuando se cierra la araña, escribir los datos en el archivo y cargarlo en S3
+        with jsonlines.open("properties_gallito.jl", mode="a") as writer:
+            writer.write_all(self.property_data)
 
+        # Subir el archivo JSONLines a S3
+        with open("properties_gallito.jl", "rb") as jsonlines_file:
             self.s3_client.put_object(
                 Bucket=self.s3_bucket_name,
-                Key=s3_key,
-                Body=image_data,
+                Key="properties_gallito.jl",
+                Body=jsonlines_file,
             )
-            self.logger.info(f"Uploaded {s3_key} to S3 bucket {self.s3_bucket_name}")
-        except Exception as e:
-            self.logger.error(f"Failed to upload {s3_key} to S3: {str(e)}")
