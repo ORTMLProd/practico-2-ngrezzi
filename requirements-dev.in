@@ -4,3 +4,4 @@ isort
 flake8
 ipython
 boto3
+jsonlines
