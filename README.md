@@ -90,5 +90,3 @@ Llegado este práctico ya van a estar familiarizados con [git](https://git-scm.c
 ## Docker
 
 Llegado este práctico ya van a estar familiarizados con el [Dockerfile](https://docs.docker.com/engine/reference/builder/), y los comandos docker [build](https://docs.docker.com/engine/reference/commandline/build/), [run](https://docs.docker.com/engine/reference/commandline/run/) y [push](https://docs.docker.com/engine/reference/commandline/push/). 
-
-Link a CodeSpaces: https://classroom.github.com/a/i7PsSONj
