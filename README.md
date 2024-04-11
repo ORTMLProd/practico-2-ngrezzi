@@ -29,7 +29,7 @@
 
 4. Authenticarse con AWS ECR [(Elastic Container Registry)](https://aws.amazon.com/es/ecr/)
 
-	aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 718038960093.dkr.ecr.us-east-1.amazonaws.com
+	aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
 
 
 5. Crear repositorio ECR 
@@ -42,24 +42,23 @@
 
 6. taggear la imagen
 
-	docker tag scrapy 718038960093.dkr.ecr.us-east-1.amazonaws.com/ml-en-prod-image-repository:scrapy
+	docker tag scrapy <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/ml-en-prod-image-repository:scrapy
 
 7. pushear imagen
 
 
-	docker push 718038960093.dkr.ecr.us-east-1.amazonaws.com/ml-en-prod-image-repository:scrapy
+	docker push <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/ml-en-prod-image-repository:scrapy
 
 
 8. Entrar a la imagen con las claves
 
-	docker run -it -e AWS_ACCESS_KEY_ID=<YOUR-KEY> \
--e AWS_SECRET_ACCESS_KEY=<YOUR-KEY> \
+	docker run -it \
+-e AWS_ACCESS_KEY_ID=<YOUR-KEY> \
+-e AWS_SECRET_ACCESS_KEY=<YOUR-SECRET-KEY> \
 -e AWS_SESSION_TOKEN=<YOUR-TOKEN> \
 scrapy
 
 	scrapy crawl gallito
-
-
 
 
 
