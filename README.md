@@ -1,6 +1,6 @@
 [![Open in Codespaces](https://classroom.github.com/assets/launch-codespace-7f7980b617ed060a017424585567c406b6ee15c891e84e1186181d67ecf80aa0.svg)](https://classroom.github.com/open-in-codespaces?assignment_repo_id=11759554)
 
-# Práctico 3 
+# Práctico 2 
 
 - instalar: pip install awscli
 - validar: aws --version
@@ -63,7 +63,7 @@ scrapy
 
 
 
-# Práctico 2
+# Recap: Práctico 1
 
 En esta parte del práctico vamos a retomar los temas ya vistos en clase para construir un web scraper que extrae imágenes de propiedades del [Gallito](gallito.com.uy/).
 
