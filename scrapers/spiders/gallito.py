@@ -5,6 +5,7 @@ import json
 from scrapy.linkextractors import LinkExtractor
 from scrapy.spiders import CrawlSpider, Rule
 from botocore.exceptions import NoCredentialsError
+from scrapers import settings
 
 class GallitoSpider(CrawlSpider):
 
@@ -22,7 +23,9 @@ class GallitoSpider(CrawlSpider):
 
     def __init__(self):
         super().__init__()
-        self.s3_bucket_name = "ml-en-produccion"
+        # Extrae el nombre del bucket de la configuración
+        images_store = settings.IMAGES_STORE
+        self.s3_bucket_name = images_store.split('//')[1] if '//' in images_store else images_store
         self.s3_client = boto3.client("s3")
         self.possible_types = {
             "casa": "HOUSE",
